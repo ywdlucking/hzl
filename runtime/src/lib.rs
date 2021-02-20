@@ -254,6 +254,40 @@ impl pallet_balances::Trait for Runtime {
 	type WeightInfo = ();
 }
 
+
+parameter_types! {
+    // Choose a fee that incentivizes desireable behavior.
+    pub const NickReservationFee: u128 = 100;
+    pub const MinNickLength: usize = 8;
+    // Maximum bounds on storage are important to secure your chain.
+    pub const MaxNickLength: usize = 32;
+}
+
+impl pallet_nicks::Trait for Runtime {
+	// The Balances pallet implements the ReservableCurrency trait.
+	// https://substrate.dev/rustdocs/v2.0.0/pallet_balances/index.html#implementations-2
+	type Currency = pallet_balances::Module<Runtime>;
+
+	// Use the NickReservationFee from the parameter_types block.
+	type ReservationFee = NickReservationFee;
+
+	// No action is taken when deposits are forfeited.
+	type Slashed = ();
+
+	// Configure the FRAME System Root origin as the Nick pallet admin.
+	// https://substrate.dev/rustdocs/v2.0.0/frame_system/enum.RawOrigin.html#variant.Root
+	type ForceOrigin = frame_system::EnsureRoot<AccountId>;
+
+	// Use the MinNickLength from the parameter_types block.
+	type MinLength = MinNickLength;
+
+	// Use the MaxNickLength from the parameter_types block.
+	type MaxLength = MaxNickLength;
+
+	// The ubiquitous event type.
+	type Event = Event;
+}
+
 /*** Add This Block ***/
 parameter_types! {
     pub const TombstoneDeposit: Balance = 16 * MILLICENTS;
@@ -301,6 +335,7 @@ impl pallet_sudo::Trait for Runtime {
 
 /// Configure the template pallet in pallets/template.
 impl pallet_template::Trait for Runtime {
+	// The ubiquitous event type.
 	type Event = Event;
 }
 
@@ -323,6 +358,7 @@ construct_runtime!(
 		TemplateModule: pallet_template::{Module, Call, Storage, Event<T>},
 		 /*** Add This Line ***/
         Contracts: pallet_contracts::{Module, Call, Config, Storage, Event<T>},
+        Nicks: pallet_nicks::{Module, Call, Storage, Event<T>},
 	}
 );
 
