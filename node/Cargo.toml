@@ -54,6 +54,9 @@ sp-inherents = '2.0.0'
 sp-runtime = '2.0.0'
 sp-transaction-pool = '2.0.0'
 substrate-frame-rpc-system = '2.0.0'
+frontier-consensus = { git = 'https://github.com/PureStake/frontier.git', branch = 'substrate-v2' }
+frontier-rpc = { git = 'https://github.com/PureStake/frontier.git', branch = 'substrate-v2' }
+frontier-rpc-primitives = { git = 'https://github.com/PureStake/frontier.git', branch = 'substrate-v2' }
 
 [features]
 default = []

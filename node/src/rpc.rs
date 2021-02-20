@@ -7,7 +7,7 @@
 
 use std::sync::Arc;
 
-use node_template_runtime::{opaque::Block, AccountId, Balance, Index, BlockNumber};
+use node_template_runtime::{opaque::Block, AccountId, Balance, Index, BlockNumber, TransactionConverter};
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::{Error as BlockChainError, HeaderMetadata, HeaderBackend};
 use sp_block_builder::BlockBuilder;
@@ -15,7 +15,11 @@ pub use sc_rpc_api::DenyUnsafe;
 use sp_transaction_pool::TransactionPool;
 
 use pallet_contracts_rpc::{Contracts, ContractsApi};
-
+use sc_client_api::{
+	backend::{StorageProvider, Backend, StateBackend, AuxStore},
+};
+use sp_runtime::traits::BlakeTwo256;
+use frontier_rpc::{EthApi, EthApiServer};
 
 /// Full client dependencies.
 pub struct FullDeps<C, P> {
@@ -25,20 +29,27 @@ pub struct FullDeps<C, P> {
 	pub pool: Arc<P>,
 	/// Whether to deny unsafe calls
 	pub deny_unsafe: DenyUnsafe,
+	/// The Node authority flag
+	pub is_authority: bool,
 }
 
 /// Instantiate all full RPC extensions.
-pub fn create_full<C, P>(
+pub fn create_full<C, P, BE>(
 	deps: FullDeps<C, P>,
 ) -> jsonrpc_core::IoHandler<sc_rpc::Metadata> where
+	BE: Backend<Block> + 'static,
+	BE::State: StateBackend<BlakeTwo256>,
 	C: ProvideRuntimeApi<Block>,
+	C: StorageProvider<Block, BE>,
+	C: AuxStore,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error=BlockChainError> + 'static,
 	C: Send + Sync + 'static,
 	C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
 	C::Api: pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber>,
 	C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
 	C::Api: BlockBuilder<Block>,
-	P: TransactionPool + 'static,
+	C::Api: frontier_rpc_primitives::EthereumRuntimeRPCApi<Block>,
+	P: TransactionPool<Block=Block> + 'static
 {
 	use substrate_frame_rpc_system::{FullSystem, SystemApi};
 	use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
@@ -48,10 +59,11 @@ pub fn create_full<C, P>(
 		client,
 		pool,
 		deny_unsafe,
+		is_authority,
 	} = deps;
 
 	io.extend_with(
-		SystemApi::to_delegate(FullSystem::new(client.clone(), pool, deny_unsafe))
+		SystemApi::to_delegate(FullSystem::new(client.clone(), pool.clone(), deny_unsafe))
 	);
 
 	io.extend_with(
@@ -60,6 +72,15 @@ pub fn create_full<C, P>(
 
 	io.extend_with(
 		ContractsApi::to_delegate(Contracts::new(client.clone()))
+	);
+
+	io.extend_with(
+		EthApiServer::to_delegate(EthApi::new(
+			client.clone(),
+			pool.clone(),
+			TransactionConverter,
+			is_authority,
+		))
 	);
 
 	// Extend this RPC with a custom API by using the following syntax.

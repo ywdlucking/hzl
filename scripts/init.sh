@@ -16,4 +16,4 @@ echo "*** Initializing WASM build environment"
 rustup uninstall stable
 rustup install 1.48.0
 rustup default 1.48.0-x86_64-unknown-linux-gnu
-rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-05
+rustup target add wasm32-unknown-unknown --toolchain nightly-2020-10-06
